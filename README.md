@@ -100,3 +100,41 @@ docker compose up --build
 | Sealed Secrets | Industry standard for GitOps secret management |
 | cert-manager | Automates TLS certificate lifecycle with Let's Encrypt |
 | Helm | Industry standard K8s package manager, enables templating and versioning |
+
+## Bonus Items Implemented
+
+### 1. Horizontal Pod Autoscaler (HPA)
+- Configured for the backend deployment
+- Scales between 1-5 replicas
+- Triggers at 70% CPU or 80% memory utilization
+- Manifest: `todo-app-gitops/apps/todo-app/templates/hpa.yaml`
+
+### 2. Network Policies
+- Three NetworkPolicies restricting pod-to-pod traffic:
+  - `frontend-policy`: frontend can only talk to backend on port 3001
+  - `backend-policy`: backend can only talk to postgres on port 5432
+  - `postgres-policy`: postgres only accepts connections from backend
+- Manifest: `todo-app-gitops/apps/todo-app/templates/networkpolicy.yaml`
+
+### 3. App-of-Apps Pattern
+- ArgoCD manages itself and child apps declaratively
+- `app-of-apps` Application watches the `argocd/` folder in GitOps repo
+- Any new ArgoCD Application added to the repo is automatically deployed
+- Manifest: `todo-app-gitops/argocd/app-of-apps.yaml`
+
+### 4. Observability — Prometheus + Grafana
+- Installed via `kube-prometheus-stack` Helm chart
+- Prometheus scrapes all cluster metrics with 1-day retention
+- Grafana dashboards available for Kubernetes resources
+- AlertManager configured for alerting
+- Access: `http://13.61.14.38:3030` (Grafana)
+
+### 5. External Secrets Operator (ESO)
+- ESO installed in `external-secrets` namespace
+- DB credentials stored in AWS Secrets Manager under `todo-app/postgres-secret`
+- `SecretStore` configured with IAM credentials for AWS SM access
+- `ExternalSecret` syncs `DB_PASSWORD` every 1 hour automatically
+- Credentials never stored in Git — pulled live from AWS SM
+- Manifests:
+  - `todo-app-gitops/apps/todo-app/templates/secret-store.yaml`
+  - `todo-app-gitops/apps/todo-app/templates/external-secret.yaml`
