@@ -1,0 +1,88 @@
+# Todo App — Paymob Senior Platform Engineer Assessment
+
+## Live URL
+🌐 https://sydiahl-todo.duckdns.org
+
+## Repositories
+- **App Code:** https://github.com/sydiahl/todo-app
+- **GitOps Manifests:** https://github.com/sydiahl/todo-app-gitops
+
+## Architecture Overview
+```
+Developer → git push → GitHub Actions CI/CD
+  → Build Docker images (multi-stage, non-root)
+  → Push to GHCR with Git SHA tag
+  → Update values.yaml in GitOps repo
+  → ArgoCD detects drift → auto-sync
+  → k3s cluster converges
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React (TypeScript) + Nginx |
+| Backend | Node.js / Express REST API |
+| Database | PostgreSQL 15 |
+| Container Registry | GitHub Container Registry (GHCR) |
+| CI/CD | GitHub Actions |
+| GitOps | ArgoCD |
+| K8s Cluster | k3s on AWS EC2 t3.medium |
+| Ingress | Nginx Ingress Controller |
+| TLS | cert-manager + Let's Encrypt |
+| Secrets | Bitnami Sealed Secrets |
+| Manifests | Helm Chart |
+
+## Security Practices
+- Multi-stage Docker builds (minimal image size)
+- Non-root users in all containers (postgres=999, backend=1001, frontend=101)
+- Read-only root filesystem for backend and frontend
+- No secrets committed to Git (Sealed Secrets)
+- Image tagged with Git SHA (no latest tags in K8s)
+- Kubernetes Secrets managed by Sealed Secrets operator
+
+## Local Development
+```bash
+# Clone the repo
+git clone https://github.com/sydiahl/todo-app.git
+cd todo-app
+
+# Copy env files
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+
+# Start all services
+docker compose up --build
+
+# Visit http://localhost:3000
+```
+
+## Deployment Flow
+1. Push code to `main` branch
+2. GitHub Actions pipeline triggers:
+   - Builds frontend & backend Docker images
+   - Tags with Git SHA (e.g. `df984171`)
+   - Pushes to GHCR
+   - Updates `values.yaml` in `todo-app-gitops` repo
+3. ArgoCD detects change in GitOps repo
+4. ArgoCD auto-syncs with self-heal enabled
+5. k3s cluster rolls out new deployment
+6. App available at https://sydiahl-todo.duckdns.org
+
+## API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /tasks | List all tasks |
+| POST | /tasks | Create a task |
+| PUT | /tasks/:id | Update a task |
+| DELETE | /tasks/:id | Delete a task |
+| GET | /health | Health check |
+
+## Kubernetes Resources
+- Namespace: `todo-app`
+- Deployments: frontend, backend, postgres
+- Services: frontend-service, backend-service, postgres-service
+- Ingress: todo-ingress (Nginx)
+- PVC: postgres-pvc (2Gi)
+- Secrets: postgres-secret (Sealed)
+- Certificate: todo-tls (Let's Encrypt)
