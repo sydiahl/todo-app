@@ -86,3 +86,17 @@ docker compose up --build
 - PVC: postgres-pvc (2Gi)
 - Secrets: postgres-secret (Sealed)
 - Certificate: todo-tls (Let's Encrypt)
+
+## Technology Choices & Justification
+
+| Technology | Justification |
+|------------|--------------|
+| React + TypeScript | Industry standard for SPAs, type safety reduces bugs |
+| Node.js/Express | Lightweight, fast for REST APIs, same language as frontend |
+| PostgreSQL | Production-grade relational DB, excellent K8s support |
+| k3s | Lightweight Kubernetes — perfect for single-node VPS, minimal resource usage |
+| GHCR | Free, integrated with GitHub Actions, no separate registry needed |
+| DuckDNS | Free subdomain service, reliable DNS, works with Let's Encrypt |
+| Sealed Secrets | Industry standard for GitOps secret management |
+| cert-manager | Automates TLS certificate lifecycle with Let's Encrypt |
+| Helm | Industry standard K8s package manager, enables templating and versioning |
