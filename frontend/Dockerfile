@@ -11,7 +11,6 @@ RUN npm run build
 # ─── Stage 2: Serve with Nginx ───────────────────────
 FROM nginx:1.25-alpine AS runtime
 
-# Fix permissions for non-root nginx
 RUN addgroup -S nginxgroup && adduser -S nginxuser -G nginxgroup \
     && chown -R nginxuser:nginxgroup /var/cache/nginx \
     && chown -R nginxuser:nginxgroup /var/log/nginx \
