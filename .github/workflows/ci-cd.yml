@@ -1,0 +1,92 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/todo-frontend
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/todo-backend
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set image tag
+      id: meta
+      run: echo "sha=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_TOKEN }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build & Push Backend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: |
+          ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.sha }}
+          ${{ env.BACKEND_IMAGE }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build & Push Frontend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: true
+        build-args: |
+          REACT_APP_API_URL=https://sydiahl-todo.duckdns.org
+        tags: |
+          ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.sha }}
+          ${{ env.FRONTEND_IMAGE }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  update-gitops:
+    name: Update GitOps Manifests
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+    - name: Checkout GitOps repo
+      uses: actions/checkout@v4
+      with:
+        repository: sydiahl/todo-app-gitops
+        token: ${{ secrets.GITOPS_TOKEN }}
+        path: gitops
+
+    - name: Update image tags in values.yaml
+      run: |
+        SHA=${{ needs.build-and-push.outputs.sha }}
+        cd gitops
+
+        sed -i "s|tag: \".*\" # frontend-tag|tag: \"${SHA}\" # frontend-tag|g" apps/todo-app/values.yaml
+        sed -i "s|tag: \".*\" # backend-tag|tag: \"${SHA}\" # backend-tag|g" apps/todo-app/values.yaml
+
+        echo "Updated tags:"
+        cat apps/todo-app/values.yaml | grep tag
+
+    - name: Commit and push
+      run: |
+        cd gitops
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add apps/todo-app/values.yaml
+        git diff --staged --quiet || git commit -m "ci: update image tags to ${{ needs.build-and-push.outputs.sha }}"
+        git push
