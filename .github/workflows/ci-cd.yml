@@ -3,6 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
 
 env:
   REGISTRY: ghcr.io
